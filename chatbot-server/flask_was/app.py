@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request
+from flask_socketio import SocketIO
 
 import os
 from google.cloud import dialogflow_v2 as dfw
@@ -7,34 +8,23 @@ from google.api_core.exceptions import InvalidArgument
 from collections import OrderedDict
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 
 
 @app.route('/', methods=['GET','POST'])
 def index_page_landing():
-    return render_template('chat.html')
     if request.method == "POST":
         pass
     else:
-        dialog = conversation_chatbot()
-        return render_template('renewal_index.html', context=dialog)
+        return render_template('chat.html')
 
 
-#terminal에서 대화형 챗봇 흉내내기
-def conversation_chatbot():
-    keys = []
-    values = []
+@socketio.on("send_message")
+def handle_send_message_event(data):
+    app.logger.info(f'{data["message"]}')
+    socketio.emit("client_message", data)
+    chatbot_request(data["message"])
 
-    requestText = input("request text : ")
-    respText = ""
-
-    while(requestText != 'quit'):
-        respText = chatbot_request(requestText)
-        keys.append(requestText) #request text
-        values.append(respText) #response text
-        requestText = input("request text : ")
-
-    dialog = OrderedDict({key:val for key, val in zip(keys, values)})
-    return dialog
 
 def chatbot_request(txtInput):
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = 'deliverychatbot-uflj-318c727647a6.json'
@@ -60,8 +50,34 @@ def chatbot_request(txtInput):
     print("Detected intent : ", response.query_result.intent.display_name)
     print("Detected intent confidence : ", response.query_result.intent_detection_confidence)
     print("Fulfillment text : ", response.query_result.fulfillment_text)
+    socketio.emit("server_message", {"message": response.query_result.fulfillment_text})
 
-    return response.query_result.fulfillment_text
+
+# @app.route('/', methods=['GET','POST'])
+# def index_page_landing():
+#     if request.method == "POST":
+#         pass
+#     else:
+#         dialog = conversation_chatbot()
+#         return render_template('renewal_index.html', context=dialog)
+
+
+# # terminal에서 대화형 챗봇 흉내내기
+# def conversation_chatbot():
+#     keys = []
+#     values = []
+
+#     requestText = input("request text : ")
+#     respText = ""
+
+#     while(requestText != 'quit'):
+#         respText = chatbot_request(requestText)
+#         keys.append(requestText) #request text
+#         values.append(respText) #response text
+#         requestText = input("request text : ")
+
+#     dialog = OrderedDict({key:val for key, val in zip(keys, values)})
+#     return dialog
 
 
 if __name__ == "__main__":
@@ -72,4 +88,4 @@ if __name__ == "__main__":
     이것도 안될 시,
     run_with_ngrok(app) 주석처리
     '''
-    app.run()
+    socketio.run(app, port=8000)
