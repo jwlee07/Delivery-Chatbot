@@ -8,13 +8,16 @@ from collections import OrderedDict
 
 app = Flask(__name__)
 
+
 @app.route('/', methods=['GET','POST'])
 def index_page_landing():
+    return render_template('chat.html')
     if request.method == "POST":
         pass
     else:
         dialog = conversation_chatbot()
         return render_template('renewal_index.html', context=dialog)
+
 
 #terminal에서 대화형 챗봇 흉내내기
 def conversation_chatbot():
